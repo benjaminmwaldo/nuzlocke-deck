@@ -1,6 +1,6 @@
-/* Service worker — cache app shell for offline use.
-   EmulatorJS CDN + PokéAPI go network-first with cache fallback. */
-const CACHE = "nuzdeck-v1";
+/* Service worker — offline support with network-first app shell,
+   so updates always arrive when online. */
+const CACHE = "nuzdeck-v2";
 const SHELL = [
   "./", "./index.html", "./manifest.webmanifest",
   "./css/style.css",
@@ -13,24 +13,20 @@ self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", e => {
-  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(
+    caches.keys()
+      .then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
 });
 self.addEventListener("fetch", e => {
-  const url = new URL(e.request.url);
   if (e.request.method !== "GET") return;
-  // app shell: cache-first
-  if (url.origin === location.origin) {
-    e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
+  // everything: network-first, fall back to cache when offline
+  e.respondWith(
+    fetch(e.request).then(resp => {
       const cp = resp.clone();
-      caches.open(CACHE).then(c => c.put(e.request, cp));
+      caches.open(CACHE).then(c => c.put(e.request, cp)).catch(() => {});
       return resp;
-    })));
-    return;
-  }
-  // external (EmulatorJS CDN, PokéAPI, sprites): network-first, fallback cache
-  e.respondWith(fetch(e.request).then(resp => {
-    const cp = resp.clone();
-    caches.open(CACHE).then(c => c.put(e.request, cp)).catch(() => {});
-    return resp;
-  }).catch(() => caches.match(e.request)));
+    }).catch(() => caches.match(e.request))
+  );
 });
