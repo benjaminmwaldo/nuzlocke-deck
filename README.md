@@ -7,7 +7,7 @@ A GBA + NDS emulator web app built for **Pokémon nuzlocke challenges** — inst
 | Tab | What it does |
 |---|---|
 | **Play** | ROM library + emulator. GBA via mGBA, NDS via melonDS (EmulatorJS/WebAssembly). Save states + battery saves in browser storage. Reads each ROM's header to identify the game. |
-| **Patch** | On-device IPS / UPS / BPS patcher for ROM hacks, with checksum verification. Patched game goes straight into your library. |
+| **Patch** | On-device IPS / UPS / BPS / xdelta3 (VCDIFF) patcher for ROM hacks, with checksum verification. Patched game goes straight into your library. |
 | **Tracker** | Full run tracker: first-encounter log with dupes warning, team (max 6), box, graveyard, missed list — plus a live **level-cap banner** that follows the boss progression for your game. |
 | **Calc** | Gen 3–5 damage calculator. Pokémon + move stats auto-fill from PokéAPI (cached offline after first use), everything hand-editable for ROM hacks. Shows damage range, % HP, and OHKO/N-HKO verdicts. Handles STAB, type chart, crits, burn, screens, weather, and the Gen 3 physical/special type split. |
 | **Rules** | Core + Hardcore nuzlocke rules, common clauses, strategy notes, and **hardcore level caps for every game Gen 1–5** plus popular ROM hacks (Renegade Platinum, Blaze Black/Volt White (+2 Redux), Sacred Gold/Storm Silver, Rising Ruby/Sinking Sapphire, Emerald Kaizo). |
