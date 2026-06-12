@@ -51,7 +51,7 @@
       <button class="btn secondary full" onclick="document.getElementById('p-rom').click()">Choose base ROM</button>
       <p class="hint mono" id="p-rom-name">none selected</p>
       <label class="f">2 · Patch file</label>
-      <input type="file" id="p-patch" accept=".ips,.ups,.bps,.xdelta,.xdelta3,.xd3,.vcdiff,.vcd" hidden onchange="patchPick('patch',this)">
+      <input type="file" id="p-patch" hidden onchange="patchPick('patch',this)">
       <button class="btn secondary full" onclick="document.getElementById('p-patch').click()">Choose .ips / .ups / .bps / .xdelta</button>
       <p class="hint mono" id="p-patch-name">none selected</p>
       <button class="btn gold full" id="btn-apply-patch" style="margin-top:14px" disabled onclick="applyPatch()">⚡ Patch &amp; add to library</button>
