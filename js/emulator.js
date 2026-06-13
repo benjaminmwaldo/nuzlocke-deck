@@ -64,7 +64,26 @@ const Emu = (() => {
       screenRecord: false,
       cacheManager: false,
     };
-    window.EJS_ready = () => {};
+    window.EJS_ready = () => {
+      // iOS fix: dynamically created canvases inherit touch-action:auto by default,
+      // which causes Safari to swallow touchmove events before the emulator sees them.
+      // Force touch-action:none on every canvas EmulatorJS creates.
+      const fixTouch = el => {
+        el.style.touchAction = "none";
+        el.style.userSelect = "none";
+        el.style.webkitUserSelect = "none";
+      };
+      const holder = document.getElementById("game-holder");
+      holder.querySelectorAll("canvas").forEach(fixTouch);
+      new MutationObserver(mutations => {
+        for (const m of mutations) {
+          m.addedNodes.forEach(n => {
+            if (n.nodeName === "CANVAS") fixTouch(n);
+            if (n.querySelectorAll) n.querySelectorAll("canvas").forEach(fixTouch);
+          });
+        }
+      }).observe(holder, { childList: true, subtree: true });
+    };
 
     const s = document.createElement("script");
     s.src = CDN + "loader.js";
