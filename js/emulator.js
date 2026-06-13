@@ -65,15 +65,15 @@ const Emu = (() => {
       cacheManager: false,
     };
     window.EJS_ready = () => {
-      // iOS fix: dynamically created canvases inherit touch-action:auto by default,
-      // which causes Safari to swallow touchmove events before the emulator sees them.
-      // Force touch-action:none on every canvas EmulatorJS creates.
+      const holder = document.getElementById("game-holder");
+
+      // iOS fix: force touch-action:none on every canvas EmulatorJS creates so
+      // Safari doesn't swallow touchmove events for scrolling.
       const fixTouch = el => {
         el.style.touchAction = "none";
         el.style.userSelect = "none";
         el.style.webkitUserSelect = "none";
       };
-      const holder = document.getElementById("game-holder");
       holder.querySelectorAll("canvas").forEach(fixTouch);
       new MutationObserver(mutations => {
         for (const m of mutations) {
@@ -83,6 +83,59 @@ const Emu = (() => {
           });
         }
       }).observe(holder, { childList: true, subtree: true });
+
+      // NDS touchscreen bridge for iOS.
+      // On mobile EmulatorJS sets pointer-events:none on the canvas (class
+      // "ejs-canvas-no-pointer") and routes all touch through the virtual gamepad
+      // overlay, whose NDS coordinate handling is broken on iOS.  Fix: use a
+      // capturing listener on the holder (fires before any child handlers) to
+      // intercept touches in the NDS bottom-screen area, then dispatch synthetic
+      // mouse events directly on the canvas — dispatchEvent() bypasses
+      // pointer-events:none, so Emscripten/RetroArch's canvas listeners still fire.
+      if (window.EJS_core === "nds") {
+        requestAnimationFrame(() => {
+          const canvas = holder.querySelector("canvas");
+          if (!canvas) return;
+
+          let ndsActive = false;
+
+          function ndsPointer(e) {
+            const touch = e.type === "touchend"
+              ? e.changedTouches[0] : e.touches[0];
+            if (!touch) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const cx = touch.clientX, cy = touch.clientY;
+
+            if (e.type === "touchstart") {
+              // Activate only when the touch STARTS in the NDS bottom screen
+              // (lower half of the canvas, accounting for minor letterboxing).
+              ndsActive = cy >= rect.top + rect.height * 0.48 &&
+                          cy <= rect.bottom &&
+                          cx >= rect.left && cx <= rect.right;
+            }
+            if (!ndsActive) return;
+
+            // Stop the virtual gamepad overlay from also processing this touch.
+            e.stopPropagation();
+
+            const type = e.type === "touchstart" ? "mousedown"
+                       : e.type === "touchmove"  ? "mousemove"
+                       : "mouseup";
+            canvas.dispatchEvent(new MouseEvent(type, {
+              bubbles: true, cancelable: true, view: window,
+              clientX: cx, clientY: cy,
+              button: 0, buttons: e.type === "touchend" ? 0 : 1,
+            }));
+
+            if (e.type === "touchend") ndsActive = false;
+          }
+
+          holder.addEventListener("touchstart", ndsPointer, { capture: true, passive: false });
+          holder.addEventListener("touchmove",  ndsPointer, { capture: true, passive: false });
+          holder.addEventListener("touchend",   ndsPointer, { capture: true, passive: false });
+        });
+      }
     };
 
     const s = document.createElement("script");
