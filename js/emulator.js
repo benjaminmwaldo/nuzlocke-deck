@@ -144,6 +144,7 @@ const Emu = (() => {
               ".ejs_settings_parent, .ejs_popup_container, button");
 
           const forward = (kinds, clientX, clientY) => {
+            const rect = canvas.getBoundingClientRect();
             for (const type of kinds) {
               let ev;
               if (type[0] === "p") {
@@ -160,6 +161,18 @@ const Emu = (() => {
                   clientX, clientY, screenX: clientX, screenY: clientY,
                   button: 0, buttons: type === "mouseup" ? 0 : 1,
                 });
+              }
+              // The libretro core's Emscripten input handler reads pageX/pageY
+              // (and offsetX/offsetY) to position the DS stylus.  Synthetic events
+              // report 0 for those — which pins the touch to the top-left corner.
+              // Patch them to the real coordinates before dispatching.
+              const patch = {
+                pageX: clientX, pageY: clientY,
+                offsetX: clientX - rect.left, offsetY: clientY - rect.top,
+                layerX: clientX - rect.left, layerY: clientY - rect.top,
+              };
+              for (const k in patch) {
+                try { Object.defineProperty(ev, k, { get: () => patch[k], configurable: true }); } catch (_) {}
               }
               canvas.dispatchEvent(ev);
             }
