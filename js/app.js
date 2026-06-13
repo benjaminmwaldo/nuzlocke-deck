@@ -138,7 +138,7 @@ function patchPick(kind, input) {
 }
 async function applyPatch() {
   try {
-    const r = Patcher.apply(Patch.rom.buf, Patch.patch.buf, Patch.patch.name);
+    const r = await Patcher.apply(Patch.rom.buf, Patch.patch.buf, Patch.patch.name);
     const warn = r.warnings || [];
     const outName = Patch.patch.name.replace(/\.(ips|ups|bps)$/i, "");
     const baseExt = (Patch.rom.name.split(".").pop() || "gba").toLowerCase();
