@@ -4,6 +4,30 @@ const Emu = (() => {
   const CDN = "https://cdn.emulatorjs.org/stable/data/";
   let running = false;
 
+  /* Optional touch diagnostic HUD (off by default; toggled by the 🐞 button).
+     Lets us see, on the device, whether touches are reaching the bridge. */
+  function dbg(msg) {
+    if (localStorage.getItem("ndsTouchDebug") !== "1") return;
+    let hud = document.getElementById("nds-hud");
+    if (!hud) {
+      hud = document.createElement("div");
+      hud.id = "nds-hud";
+      hud.style.cssText = "position:fixed;left:6px;top:54px;z-index:99999;" +
+        "background:rgba(0,0,0,.78);color:#5dff8f;font:11px ui-monospace,monospace;" +
+        "padding:5px 8px;border-radius:7px;pointer-events:none;white-space:pre;max-width:70vw";
+      (document.getElementById("emu-stage") || document.body).appendChild(hud);
+    }
+    hud.textContent = "NDS touch: " + msg;
+  }
+  function toggleDebug(btn) {
+    const on = localStorage.getItem("ndsTouchDebug") === "1";
+    localStorage.setItem("ndsTouchDebug", on ? "0" : "1");
+    if (btn) btn.classList.toggle("ff-on", !on);
+    const hud = document.getElementById("nds-hud");
+    if (on && hud) hud.remove();
+    else dbg("enabled — touch the bottom screen");
+  }
+
   async function addRomFile(file) {
     const ext = (file.name.split(".").pop() || "").toLowerCase();
     if (!["gba", "nds", "gb", "gbc"].includes(ext)) throw new Error("Only .gba / .nds / .gb / .gbc files are supported");
@@ -85,77 +109,93 @@ const Emu = (() => {
       }).observe(holder, { childList: true, subtree: true });
 
       // NDS touchscreen bridge for iOS.
-      // EmulatorJS on mobile sets pointer-events:none on the canvas and routes all
-      // touch through the virtual gamepad overlay, whose NDS coordinate handling is
-      // broken on iOS.  Fix: capturing listener intercepts touches in the NDS
-      // bottom-screen area (lower ~50% of canvas) and re-dispatches them as
-      // synthetic TouchEvents directly on the canvas.  dispatchEvent() bypasses
-      // pointer-events:none, so Emscripten/RetroArch's touchstart/touchmove/touchend
-      // callbacks on Module.canvas receive the correct coordinates.
+      //
+      // EmulatorJS leaves NDS touch input to the libretro core's own canvas
+      // listeners.  On a desktop, a real mouse drives those listeners (and a real
+      // mouse also makes the browser emit PointerEvents).  On iOS there is no
+      // mouse, and a touch on the canvas doesn't reliably reach the core.  Earlier
+      // attempts failed for two reasons: (1) a capture-phase listener that called
+      // stopPropagation() on the lower half of the screen also swallowed the
+      // on-screen D-pad / A-B buttons that live there; (2) it dispatched Touch /
+      // Mouse events, but the `new Touch()` constructor throws on iOS Safari and a
+      // synthetic MouseEvent never produces a PointerEvent — so a core listening
+      // for pointer events saw nothing.
+      //
+      // This version listens in the BUBBLE phase (so the virtual gamepad always
+      // gets its events first) and simply ignores any touch that landed on a
+      // control or menu element.  For touches on the game screen it forwards real
+      // PointerEvents (matching what a desktop mouse produces) plus MouseEvents as
+      // a fallback, aimed at the actual emulator canvas.
       if (window.EJS_core === "nds") {
-        // Retry until canvas exists (EJS_ready may fire just before canvas is in DOM).
-        function setupNdsBridge() {
-          const canvas = holder.querySelector("canvas");
+        const setupNdsBridge = () => {
+          const ejs = window.EJS_emulator;
+          const canvas = (ejs && ejs.canvas) || holder.querySelector("canvas");
           if (!canvas) { setTimeout(setupNdsBridge, 150); return; }
 
-          let ndsActive = false;
+          dbg(canvas ? "canvas ✓ ready — touch the bottom screen" : "no canvas!");
 
-          function ndsPointer(e) {
-            // Skip synthetic events we dispatched — our capture listener would
-            // otherwise intercept them before they reach the canvas.
-            if (!e.isTrusted) return;
-            const t = e.type === "touchend" ? e.changedTouches[0] : e.touches[0];
+          let dragging = false;
+
+          // True when the touch began on a virtual-gamepad control or a menu —
+          // in that case we leave the event completely alone.
+          const onControl = (target) =>
+            target instanceof Element && !!target.closest(
+              ".ejs_virtualGamepad_parent, .ejs_menu_bar, .ejs_context_menu, " +
+              ".ejs_settings_parent, .ejs_popup_container, button");
+
+          const forward = (kinds, clientX, clientY) => {
+            for (const type of kinds) {
+              let ev;
+              if (type[0] === "p") {
+                ev = new PointerEvent(type, {
+                  bubbles: true, cancelable: true, view: window,
+                  clientX, clientY, screenX: clientX, screenY: clientY,
+                  pointerId: 1, pointerType: "mouse", isPrimary: true,
+                  button: type === "pointermove" ? -1 : 0,
+                  buttons: type === "pointerup" ? 0 : 1,
+                });
+              } else {
+                ev = new MouseEvent(type, {
+                  bubbles: true, cancelable: true, view: window,
+                  clientX, clientY, screenX: clientX, screenY: clientY,
+                  button: 0, buttons: type === "mouseup" ? 0 : 1,
+                });
+              }
+              canvas.dispatchEvent(ev);
+            }
+          };
+
+          const onStart = (e) => {
+            if (onControl(e.target)) { dbg("start → control (" + (e.target.className || e.target.tagName) + ")"); return; }
+            const t = e.changedTouches[0];
             if (!t) return;
-
-            const rect = canvas.getBoundingClientRect();
-            const cx = t.clientX, cy = t.clientY;
-
-            if (e.type === "touchstart") {
-              ndsActive = cy >= rect.top + rect.height * 0.48 &&
-                          cy <= rect.bottom &&
-                          cx >= rect.left && cx <= rect.right;
-            }
-            if (!ndsActive) return;
-
-            // Prevent the virtual gamepad overlay from also handling this touch.
-            e.stopPropagation();
+            dragging = true;
+            e.preventDefault();                        // stop iOS scroll / synthetic clicks
+            forward(["pointerdown", "mousedown"], t.clientX, t.clientY);
+            dbg("down → canvas @ " + Math.round(t.clientX) + "," + Math.round(t.clientY));
+          };
+          const onMove = (e) => {
+            if (!dragging) return;
+            const t = e.changedTouches[0];
+            if (!t) return;
             e.preventDefault();
+            forward(["pointermove", "mousemove"], t.clientX, t.clientY);
+            dbg("move → canvas @ " + Math.round(t.clientX) + "," + Math.round(t.clientY));
+          };
+          const onEnd = (e) => {
+            if (!dragging) return;
+            dragging = false;
+            const t = e.changedTouches[0];
+            const x = t ? t.clientX : 0, y = t ? t.clientY : 0;
+            forward(["pointerup", "mouseup"], x, y);
+          };
 
-            // Dispatch a synthetic TouchEvent on the canvas.
-            // RetroArch's Emscripten port registers touchstart/move/end on
-            // Module.canvas; dispatchEvent() ignores pointer-events:none.
-            try {
-              const synth = new Touch({
-                identifier: 1, target: canvas,
-                clientX: cx, clientY: cy,
-                screenX: t.screenX, screenY: t.screenY,
-                pageX: t.pageX, pageY: t.pageY,
-                radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1,
-              });
-              canvas.dispatchEvent(new TouchEvent(e.type, {
-                bubbles: true, cancelable: true,
-                touches:       e.type === "touchend" ? [] : [synth],
-                targetTouches: e.type === "touchend" ? [] : [synth],
-                changedTouches: [synth],
-              }));
-            } catch (_) {
-              // Fallback: mouse events (desktop / older browsers)
-              const mt = e.type === "touchstart" ? "mousedown"
-                       : e.type === "touchmove"  ? "mousemove" : "mouseup";
-              canvas.dispatchEvent(new MouseEvent(mt, {
-                bubbles: true, cancelable: true, view: window,
-                clientX: cx, clientY: cy,
-                button: 0, buttons: e.type === "touchend" ? 0 : 1,
-              }));
-            }
-
-            if (e.type === "touchend") ndsActive = false;
-          }
-
-          holder.addEventListener("touchstart", ndsPointer, { capture: true, passive: false });
-          holder.addEventListener("touchmove",  ndsPointer, { capture: true, passive: false });
-          holder.addEventListener("touchend",   ndsPointer, { capture: true, passive: false });
-        }
+          // Bubble phase, no stopPropagation → on-screen buttons keep working.
+          holder.addEventListener("touchstart", onStart, { passive: false });
+          holder.addEventListener("touchmove",  onMove,  { passive: false });
+          holder.addEventListener("touchend",   onEnd,   { passive: false });
+          holder.addEventListener("touchcancel", onEnd,  { passive: false });
+        };
         requestAnimationFrame(setupNdsBridge);
       }
     };
@@ -190,5 +230,5 @@ const Emu = (() => {
 
   function exit() { location.reload(); }
 
-  return { addRomFile, addRomBuffer, launch, toggleFF, exit, get running() { return running; } };
+  return { addRomFile, addRomBuffer, launch, toggleFF, toggleDebug, exit, get running() { return running; } };
 })();
