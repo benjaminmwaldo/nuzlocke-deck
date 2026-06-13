@@ -132,7 +132,7 @@ const Emu = (() => {
           const ejsCanvas = (ejs && ejs.canvas) || holder.querySelector("canvas");
           if (!ejsCanvas) { setTimeout(setupNdsBridge, 150); return; }
 
-          dbg("v2.0 ready — touch the bottom screen");
+          dbg("v2.1 ready — touch the bottom screen");
 
           let dragging = false;
 
@@ -223,11 +223,13 @@ const Emu = (() => {
             const t = e.changedTouches[0];
             if (!t) return;
             dragging = true;
-            e.preventDefault();
+            // NOTE: deliberately NOT calling preventDefault — that lets iOS emit
+            // its own *trusted* compatibility mouse events on the (clickable)
+            // canvas, which the core honors when synthetic events are ignored.
             const { cv, tr } = forward("down", t.clientX, t.clientY);
             const m = window.EJS_emulator && window.EJS_emulator.Module;
             dbg([
-              "v2.0 down @ " + Math.round(t.clientX) + "," + Math.round(t.clientY),
+              "v2.1 down @ " + Math.round(t.clientX) + "," + Math.round(t.clientY),
               "target:   " + desc(e.target),
               "dispatch: " + desc(cv),
               "Module.canvas: " + (m ? (m.canvas === cv ? "(same)" : desc(m.canvas)) : "none"),
@@ -239,7 +241,6 @@ const Emu = (() => {
             if (!dragging) return;
             const t = e.changedTouches[0];
             if (!t) return;
-            e.preventDefault();
             forward("move", t.clientX, t.clientY);
           };
           const onEnd = (e) => {
@@ -249,11 +250,28 @@ const Emu = (() => {
             forward("up", t ? t.clientX : 0, t ? t.clientY : 0);
           };
 
-          // Bubble phase, no stopPropagation → on-screen buttons keep working.
-          holder.addEventListener("touchstart", onStart, { passive: false });
-          holder.addEventListener("touchmove",  onMove,  { passive: false });
-          holder.addEventListener("touchend",   onEnd,   { passive: false });
-          holder.addEventListener("touchcancel", onEnd,  { passive: false });
+          // Coax iOS into firing its (trusted) compatibility mouse events on the
+          // canvas: iOS only does so for "clickable" elements and only when the
+          // touch's default isn't prevented.  Make the canvas clickable…
+          const cv0 = targetCanvas();
+          [ejsCanvas, cv0].forEach(c => {
+            if (c) { c.style.cursor = "pointer"; if (!c.onclick) c.onclick = () => {}; }
+          });
+          // …and report any *trusted* native mouse/pointer event that lands on the
+          // canvas, so we can confirm whether iOS is delivering what the core wants.
+          const nativeLog = (e) => {
+            if (e.isTrusted) dbg("NATIVE " + e.type + " trusted @ " +
+              Math.round(e.clientX) + "," + Math.round(e.clientY));
+          };
+          ["mousedown", "mouseup", "pointerdown", "click"].forEach(t =>
+            (cv0 || ejsCanvas).addEventListener(t, nativeLog, true));
+
+          // Passive listeners (no preventDefault) so iOS still emits its native
+          // mouse events; we skip controls so on-screen buttons keep working.
+          holder.addEventListener("touchstart", onStart, { passive: true });
+          holder.addEventListener("touchmove",  onMove,  { passive: true });
+          holder.addEventListener("touchend",   onEnd,   { passive: true });
+          holder.addEventListener("touchcancel", onEnd,  { passive: true });
         };
         requestAnimationFrame(setupNdsBridge);
       }
