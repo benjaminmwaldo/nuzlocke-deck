@@ -132,7 +132,7 @@ const Emu = (() => {
           const ejsCanvas = (ejs && ejs.canvas) || holder.querySelector("canvas");
           if (!ejsCanvas) { setTimeout(setupNdsBridge, 150); return; }
 
-          dbg("v1.9 ready — touch the bottom screen");
+          dbg("v2.0 ready — touch the bottom screen");
 
           let dragging = false;
 
@@ -205,7 +205,16 @@ const Emu = (() => {
           const forward = (phase, x, y) => {
             const cv = targetCanvas();
             const tr = sendTouch(phase, x, y, cv);
-            sendMousePointer(phase, x, y, cv);
+            if (phase === "down") {
+              // The core latches the DS stylus position from a pointer MOVE; a
+              // bare press fires at the stale default position (0,0 = top-left,
+              // which is the "dot stuck in the corner" symptom).  Move to the
+              // touched point first, then press.
+              sendMousePointer("move", x, y, cv);
+              sendMousePointer("down", x, y, cv);
+            } else {
+              sendMousePointer(phase, x, y, cv);
+            }
             return { cv, tr };
           };
 
@@ -218,7 +227,7 @@ const Emu = (() => {
             const { cv, tr } = forward("down", t.clientX, t.clientY);
             const m = window.EJS_emulator && window.EJS_emulator.Module;
             dbg([
-              "v1.9 down @ " + Math.round(t.clientX) + "," + Math.round(t.clientY),
+              "v2.0 down @ " + Math.round(t.clientX) + "," + Math.round(t.clientY),
               "target:   " + desc(e.target),
               "dispatch: " + desc(cv),
               "Module.canvas: " + (m ? (m.canvas === cv ? "(same)" : desc(m.canvas)) : "none"),
