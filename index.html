@@ -16,7 +16,7 @@
 <header class="app-bar">
   <div class="ball"></div>
   <h1>NuzLocke <span>Deck</span></h1>
-  <div class="sub">v1.6 · Jun 12</div>
+  <div class="sub">v1.7 · Jun 13</div>
 </header>
 
 <main>
@@ -234,6 +234,7 @@
   <div id="emu-topbar">
     <button onclick="Emu.exit()">✕ Exit</button>
     <div class="title" id="emu-title"></div>
+    <button id="btn-tdbg" onclick="Emu.toggleDebug(this)" title="Touch diagnostic">🐞</button>
     <button id="btn-ff" onclick="Emu.toggleFF(this)">FF ⏩</button>
   </div>
   <div id="game-holder"><div id="game"></div></div>
