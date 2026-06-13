@@ -129,78 +129,115 @@ const Emu = (() => {
       if (window.EJS_core === "nds") {
         const setupNdsBridge = () => {
           const ejs = window.EJS_emulator;
-          const canvas = (ejs && ejs.canvas) || holder.querySelector("canvas");
-          if (!canvas) { setTimeout(setupNdsBridge, 150); return; }
+          const ejsCanvas = (ejs && ejs.canvas) || holder.querySelector("canvas");
+          if (!ejsCanvas) { setTimeout(setupNdsBridge, 150); return; }
 
-          dbg(canvas ? "canvas ✓ ready — touch the bottom screen" : "no canvas!");
+          dbg("v1.9 ready — touch the bottom screen");
 
           let dragging = false;
 
-          // True when the touch began on a virtual-gamepad control or a menu —
-          // in that case we leave the event completely alone.
+          const desc = el => !el ? "null" :
+            (el.tagName || "?") + (el.id ? "#" + el.id : "") +
+            (typeof el.className === "string" && el.className.trim()
+              ? "." + el.className.trim().split(/\s+/).join(".") : "");
+
+          // The element the libretro core actually registered its input
+          // listeners on is the Emscripten module canvas (Module.canvas).  Prefer
+          // it; fall back to the EmulatorJS canvas reference.
+          const targetCanvas = () => {
+            const m = window.EJS_emulator && window.EJS_emulator.Module;
+            return (m && m.canvas) || ejsCanvas;
+          };
+
           const onControl = (target) =>
             target instanceof Element && !!target.closest(
               ".ejs_virtualGamepad_parent, .ejs_menu_bar, .ejs_context_menu, " +
               ".ejs_settings_parent, .ejs_popup_container, button");
 
-          const forward = (kinds, clientX, clientY) => {
-            const rect = canvas.getBoundingClientRect();
-            for (const type of kinds) {
-              let ev;
-              if (type[0] === "p") {
-                ev = new PointerEvent(type, {
-                  bubbles: true, cancelable: true, view: window,
-                  clientX, clientY, screenX: clientX, screenY: clientY,
-                  pointerId: 1, pointerType: "mouse", isPrimary: true,
-                  button: type === "pointermove" ? -1 : 0,
-                  buttons: type === "pointerup" ? 0 : 1,
-                });
-              } else {
-                ev = new MouseEvent(type, {
-                  bubbles: true, cancelable: true, view: window,
-                  clientX, clientY, screenX: clientX, screenY: clientY,
-                  button: 0, buttons: type === "mouseup" ? 0 : 1,
-                });
+          // Deliver a real touch event. Modern browsers (incl. iOS 16.4+) support
+          // the TouchEvent constructor; older iOS Safari needs the legacy WebKit
+          // document.createTouch / initTouchEvent path.
+          const sendTouch = (phase, x, y, cv) => {
+            const type = phase === "down" ? "touchstart" : phase === "move" ? "touchmove" : "touchend";
+            try {
+              const tt = new Touch({ identifier: 1, target: cv, clientX: x, clientY: y,
+                pageX: x, pageY: y, screenX: x, screenY: y, radiusX: 2, radiusY: 2, force: 1 });
+              const list = type === "touchend" ? [] : [tt];
+              cv.dispatchEvent(new TouchEvent(type, { bubbles: true, cancelable: true,
+                touches: list, targetTouches: list, changedTouches: [tt] }));
+              return "new";
+            } catch (_) {}
+            try {
+              if (document.createTouch && document.createTouchList) {
+                const tt = document.createTouch(window, cv, 1, x, y, x, y, x, y);
+                const list = document.createTouchList(tt);
+                const te = document.createEvent("TouchEvent");
+                te.initTouchEvent(type, true, true, window, 0, x, y, x, y,
+                  false, false, false, false, list, list, list, 1, 0);
+                cv.dispatchEvent(te);
+                return "legacy";
               }
-              // The libretro core's Emscripten input handler reads pageX/pageY
-              // (and offsetX/offsetY) to position the DS stylus.  Synthetic events
-              // report 0 for those — which pins the touch to the top-left corner.
-              // Patch them to the real coordinates before dispatching.
-              const patch = {
-                pageX: clientX, pageY: clientY,
-                offsetX: clientX - rect.left, offsetY: clientY - rect.top,
-                layerX: clientX - rect.left, layerY: clientY - rect.top,
-              };
+            } catch (_) {}
+            return "unsupported";
+          };
+
+          // Pointer + mouse, as a fallback for cores that read those instead.
+          const sendMousePointer = (phase, x, y, cv) => {
+            const rect = cv.getBoundingClientRect();
+            const mk = (Ctor, type, extra) => {
+              const ev = new Ctor(type, Object.assign(
+                { bubbles: true, cancelable: true, view: window,
+                  clientX: x, clientY: y, screenX: x, screenY: y }, extra));
+              const patch = { pageX: x, pageY: y, offsetX: x - rect.left, offsetY: y - rect.top,
+                layerX: x - rect.left, layerY: y - rect.top };
               for (const k in patch) {
                 try { Object.defineProperty(ev, k, { get: () => patch[k], configurable: true }); } catch (_) {}
               }
-              canvas.dispatchEvent(ev);
-            }
+              cv.dispatchEvent(ev);
+            };
+            mk(PointerEvent, phase === "down" ? "pointerdown" : phase === "move" ? "pointermove" : "pointerup",
+              { pointerId: 1, pointerType: "touch", isPrimary: true,
+                button: phase === "move" ? -1 : 0, buttons: phase === "up" ? 0 : 1, pressure: phase === "up" ? 0 : 1 });
+            mk(MouseEvent, phase === "down" ? "mousedown" : phase === "move" ? "mousemove" : "mouseup",
+              { button: 0, buttons: phase === "up" ? 0 : 1 });
+          };
+
+          const forward = (phase, x, y) => {
+            const cv = targetCanvas();
+            const tr = sendTouch(phase, x, y, cv);
+            sendMousePointer(phase, x, y, cv);
+            return { cv, tr };
           };
 
           const onStart = (e) => {
-            if (onControl(e.target)) { dbg("start → control (" + (e.target.className || e.target.tagName) + ")"); return; }
+            if (onControl(e.target)) { dbg("CONTROL: " + desc(e.target)); return; }
             const t = e.changedTouches[0];
             if (!t) return;
             dragging = true;
-            e.preventDefault();                        // stop iOS scroll / synthetic clicks
-            forward(["pointerdown", "mousedown"], t.clientX, t.clientY);
-            dbg("down → canvas @ " + Math.round(t.clientX) + "," + Math.round(t.clientY));
+            e.preventDefault();
+            const { cv, tr } = forward("down", t.clientX, t.clientY);
+            const m = window.EJS_emulator && window.EJS_emulator.Module;
+            dbg([
+              "v1.9 down @ " + Math.round(t.clientX) + "," + Math.round(t.clientY),
+              "target:   " + desc(e.target),
+              "dispatch: " + desc(cv),
+              "Module.canvas: " + (m ? (m.canvas === cv ? "(same)" : desc(m.canvas)) : "none"),
+              "tgt==canvas: " + (e.target === cv),
+              "touch: " + tr,
+            ].join("\n"));
           };
           const onMove = (e) => {
             if (!dragging) return;
             const t = e.changedTouches[0];
             if (!t) return;
             e.preventDefault();
-            forward(["pointermove", "mousemove"], t.clientX, t.clientY);
-            dbg("move → canvas @ " + Math.round(t.clientX) + "," + Math.round(t.clientY));
+            forward("move", t.clientX, t.clientY);
           };
           const onEnd = (e) => {
             if (!dragging) return;
             dragging = false;
             const t = e.changedTouches[0];
-            const x = t ? t.clientX : 0, y = t ? t.clientY : 0;
-            forward(["pointerup", "mouseup"], x, y);
+            forward("up", t ? t.clientX : 0, t ? t.clientY : 0);
           };
 
           // Bubble phase, no stopPropagation → on-screen buttons keep working.
