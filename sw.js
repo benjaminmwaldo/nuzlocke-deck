@@ -1,6 +1,6 @@
 /* Service worker — offline support with network-first app shell,
    so updates always arrive when online. */
-const CACHE = "nuzdeck-v11";
+const CACHE = "nuzdeck-v12";
 const SHELL = [
   "./", "./index.html", "./manifest.webmanifest",
   "./css/style.css",
