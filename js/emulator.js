@@ -52,7 +52,10 @@ const Emu = (() => {
   }
 
   function coreFor(ext) {
-    return { gba: "gba", nds: "nds", gb: "gb", gbc: "gb" }[ext] || "gba";
+    // NDS: use the DeSmuME core, not melonDS. melonDS's WASM build does not wire
+    // up touch-screen input in EmulatorJS (issue #394) and also requires BIOS
+    // files; DeSmuME handles the touch screen natively and needs no BIOS.
+    return { gba: "gba", nds: "desmume2015", gb: "gb", gbc: "gb" }[ext] || "gba";
   }
 
   /* Launch a ROM full-screen. Cheats = array of [name, code] (multi-line codes joined with \n). */
@@ -126,13 +129,13 @@ const Emu = (() => {
       // control or menu element.  For touches on the game screen it forwards real
       // PointerEvents (matching what a desktop mouse produces) plus MouseEvents as
       // a fallback, aimed at the actual emulator canvas.
-      if (window.EJS_core === "nds") {
+      if (["nds", "melonds", "desmume", "desmume2015"].includes(window.EJS_core)) {
         const setupNdsBridge = () => {
           const ejs = window.EJS_emulator;
           const ejsCanvas = (ejs && ejs.canvas) || holder.querySelector("canvas");
           if (!ejsCanvas) { setTimeout(setupNdsBridge, 150); return; }
 
-          dbg("v2.1 ready — touch the bottom screen");
+          dbg("v2.2 (DeSmuME) ready — touch the bottom screen");
 
           let dragging = false;
 
@@ -202,20 +205,12 @@ const Emu = (() => {
               { button: 0, buttons: phase === "up" ? 0 : 1 });
           };
 
+          // DeSmuME handles the DS touch screen natively from the real DOM touch,
+          // so we do NOT dispatch synthetic events (that would double-tap).  This
+          // bridge now stays purely for the diagnostic HUD; sendTouch /
+          // sendMousePointer remain above only as an unused emergency fallback.
           const forward = (phase, x, y) => {
-            const cv = targetCanvas();
-            const tr = sendTouch(phase, x, y, cv);
-            if (phase === "down") {
-              // The core latches the DS stylus position from a pointer MOVE; a
-              // bare press fires at the stale default position (0,0 = top-left,
-              // which is the "dot stuck in the corner" symptom).  Move to the
-              // touched point first, then press.
-              sendMousePointer("move", x, y, cv);
-              sendMousePointer("down", x, y, cv);
-            } else {
-              sendMousePointer(phase, x, y, cv);
-            }
-            return { cv, tr };
+            return { cv: targetCanvas(), tr: "native (desmume core)" };
           };
 
           const onStart = (e) => {
@@ -229,7 +224,7 @@ const Emu = (() => {
             const { cv, tr } = forward("down", t.clientX, t.clientY);
             const m = window.EJS_emulator && window.EJS_emulator.Module;
             dbg([
-              "v2.1 down @ " + Math.round(t.clientX) + "," + Math.round(t.clientY),
+              "v2.2 down @ " + Math.round(t.clientX) + "," + Math.round(t.clientY),
               "target:   " + desc(e.target),
               "dispatch: " + desc(cv),
               "Module.canvas: " + (m ? (m.canvas === cv ? "(same)" : desc(m.canvas)) : "none"),
