@@ -101,6 +101,9 @@ const Emu = (() => {
           let ndsActive = false;
 
           function ndsPointer(e) {
+            // Skip synthetic events we dispatched — our capture listener would
+            // otherwise intercept them before they reach the canvas.
+            if (!e.isTrusted) return;
             const t = e.type === "touchend" ? e.changedTouches[0] : e.touches[0];
             if (!t) return;
 
