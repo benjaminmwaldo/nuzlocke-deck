@@ -86,6 +86,10 @@ const Emu = (() => {
       "save-state-location": "browser",
       "fastForward": "enabled",
       "ff-ratio": "3.0",
+      // DeSmuME: default pointer type is "mouse" (relative cursor) which ignores
+      // taps. "touch" makes the stylus go to where you tap — required for mobile.
+      "desmume_pointer_mouse": "enabled",
+      "desmume_pointer_type": "touch",
     };
     window.EJS_Buttons = {
       screenRecord: false,
@@ -133,12 +137,28 @@ const Emu = (() => {
       // PointerEvents (matching what a desktop mouse produces) plus MouseEvents as
       // a fallback, aimed at the actual emulator canvas.
       if (["nds", "melonds", "desmume", "desmume2015"].includes(window.EJS_core)) {
+        // Force the DeSmuME stylus into "touch" mode at runtime (the actual fix):
+        // in the default "mouse" mode the core ignores taps entirely.
+        const applyTouchMode = (tries) => {
+          try {
+            const gm = window.EJS_emulator && window.EJS_emulator.gameManager;
+            if (gm && typeof gm.setVariable === "function") {
+              gm.setVariable("desmume_pointer_mouse", "enabled");
+              gm.setVariable("desmume_pointer_type", "touch");
+              dbg("desmume stylus → touch mode set");
+              return;
+            }
+          } catch (_) {}
+          if (tries > 0) setTimeout(() => applyTouchMode(tries - 1), 300);
+        };
+        applyTouchMode(15);
+
         const setupNdsBridge = () => {
           const ejs = window.EJS_emulator;
           const ejsCanvas = (ejs && ejs.canvas) || holder.querySelector("canvas");
           if (!ejsCanvas) { setTimeout(setupNdsBridge, 150); return; }
 
-          dbg("v2.3 (DeSmuME) ready — touch the bottom screen");
+          dbg("v2.4 (DeSmuME touch) ready — touch the bottom screen");
 
           let dragging = false;
 
@@ -227,7 +247,7 @@ const Emu = (() => {
             const { cv, tr } = forward("down", t.clientX, t.clientY);
             const m = window.EJS_emulator && window.EJS_emulator.Module;
             dbg([
-              "v2.3 down @ " + Math.round(t.clientX) + "," + Math.round(t.clientY),
+              "v2.4 down @ " + Math.round(t.clientX) + "," + Math.round(t.clientY),
               "target:   " + desc(e.target),
               "dispatch: " + desc(cv),
               "Module.canvas: " + (m ? (m.canvas === cv ? "(same)" : desc(m.canvas)) : "none"),
