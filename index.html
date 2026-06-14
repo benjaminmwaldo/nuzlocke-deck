@@ -16,7 +16,7 @@
 <header class="app-bar">
   <div class="ball"></div>
   <h1>NuzLocke <span>Deck</span></h1>
-  <div class="sub">v2.4 · Jun 13</div>
+  <div class="sub">v2.5 · Jun 13</div>
 </header>
 
 <main>
@@ -37,6 +37,13 @@
     <div class="card">
       <h3>🍬 Rare Candy cheats</h3>
       <p class="hint">The app reads each ROM's header and auto-detects the game. Supported games (Ruby → White 2, incl. most ROM hacks built on them) get verified Rare Candy codes offered at launch — they land in the in-game cheat manager, ready to toggle.</p>
+    </div>
+    <div class="card">
+      <h3>⚙️ Settings</h3>
+      <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--text);line-height:1.45">
+        <input type="checkbox" id="set-touchdebug" style="width:auto;margin-top:2px;flex:none" onchange="Emu.setDebugVisible(this.checked)">
+        <span>Show the touch-diagnostic (🐞) button in the emulator. For troubleshooting NDS touch input — leave off for normal play.</span>
+      </label>
     </div>
   </section>
 
@@ -234,7 +241,9 @@
   <div id="emu-topbar">
     <button onclick="Emu.exit()">✕ Exit</button>
     <div class="title" id="emu-title"></div>
-    <button id="btn-tdbg" onclick="Emu.toggleDebug(this)" title="Touch diagnostic">🐞</button>
+    <button id="btn-daynight" onclick="Emu.toggleDayNight(this)" title="Toggle day / night" hidden>🌓</button>
+    <button id="btn-hidectrl" onclick="Emu.toggleControls(this)" title="Hide / show on-screen controls" hidden>🎮</button>
+    <button id="btn-tdbg" onclick="Emu.toggleDebug(this)" title="Touch diagnostic" hidden>🐞</button>
     <button id="btn-ff" onclick="Emu.toggleFF(this)">FF ⏩</button>
   </div>
   <div id="game-holder"><div id="game"></div></div>
