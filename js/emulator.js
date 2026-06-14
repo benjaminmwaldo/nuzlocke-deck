@@ -4,6 +4,48 @@ const Emu = (() => {
   const CDN = "https://cdn.emulatorjs.org/stable/data/";
   let running = false;
 
+  /* ---- Day/Night: shift the emulated DS real-time clock ----
+     DeSmuME reads the host clock for the DS RTC, so offsetting Date.now() pushes
+     the in-game time into day or night.  Installed before the core loads so the
+     wasm picks it up.  A constant offset doesn't disturb interval-based timing
+     (those use differences); only absolute wall-clock reads (the RTC) shift. */
+  const _realDateNow = Date.now.bind(Date);
+  let _clockOffsetMs = 0;
+  Date.now = () => _realDateNow() + _clockOffsetMs;
+  let _dayNight = null;
+  function toggleDayNight(btn) {
+    _dayNight = _dayNight === "day" ? "night" : "day";
+    const targetHour = _dayNight === "day" ? 13 : 1;     // 1 PM vs 1 AM
+    const real = new Date(_realDateNow());
+    _clockOffsetMs = (targetHour - real.getHours()) * 3600000;
+    if (btn) {
+      btn.textContent = _dayNight === "day" ? "☀️" : "🌙";
+      btn.classList.toggle("ff-on", _dayNight === "night");
+    }
+    toast("In-game time → " + (_dayNight === "day" ? "Day (1 PM)" : "Night (1 AM)") +
+      " · take a few steps or re-enter the area to apply");
+  }
+
+  /* ---- Hide / show the on-screen controls for full touch-screen access ---- */
+  function toggleControls(btn) {
+    const st = document.getElementById("emu-stage");
+    const hidden = st.classList.toggle("ctrls-hidden");
+    if (btn) { btn.classList.toggle("ff-on", hidden); btn.textContent = hidden ? "🎮✕" : "🎮"; }
+    toast(hidden ? "Controls hidden — full touch screen" : "Controls shown");
+  }
+
+  /* ---- Settings: show/hide the 🐞 touch-diagnostic button ---- */
+  function setDebugVisible(on) {
+    localStorage.setItem("showTouchDebug", on ? "1" : "0");
+    const b = document.getElementById("btn-tdbg");
+    if (b) b.hidden = !on;
+    if (!on) localStorage.setItem("ndsTouchDebug", "0");  // also turn the HUD off
+  }
+  document.addEventListener("DOMContentLoaded", () => {
+    const cb = document.getElementById("set-touchdebug");
+    if (cb) cb.checked = localStorage.getItem("showTouchDebug") === "1";
+  });
+
   /* Optional touch diagnostic HUD (off by default; toggled by the 🐞 button).
      Lets us see, on the device, whether touches are reaching the bridge. */
   function dbg(msg) {
@@ -66,8 +108,19 @@ const Emu = (() => {
     const stage = document.getElementById("emu-stage");
     const title = document.getElementById("emu-title");
     stage.classList.add("on");
+    stage.classList.remove("ctrls-hidden");
     title.textContent = rom.name;
     document.getElementById("game-holder").innerHTML = '<div id="game"></div>';
+
+    // Day/Night + hide-controls are NDS-only; 🐞 shows only if enabled in Settings.
+    const isNds = rom.ext === "nds";
+    const setHidden = (id, h) => { const e = document.getElementById(id); if (e) e.hidden = h; };
+    setHidden("btn-daynight", !isNds);
+    setHidden("btn-hidectrl", !isNds);
+    setHidden("btn-tdbg", localStorage.getItem("showTouchDebug") !== "1");
+    _clockOffsetMs = 0; _dayNight = null;
+    const dn = document.getElementById("btn-daynight");
+    if (dn) { dn.textContent = "🌓"; dn.classList.remove("ff-on"); }
 
     const blob = new Blob([rom.data]);
     const url = URL.createObjectURL(blob);
@@ -325,5 +378,5 @@ const Emu = (() => {
 
   function exit() { location.reload(); }
 
-  return { addRomFile, addRomBuffer, launch, toggleFF, toggleDebug, exit, get running() { return running; } };
+  return { addRomFile, addRomBuffer, launch, toggleFF, toggleDebug, toggleDayNight, toggleControls, setDebugVisible, exit, get running() { return running; } };
 })();
