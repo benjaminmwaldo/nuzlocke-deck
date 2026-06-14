@@ -61,7 +61,7 @@ async function addRom(input) {
   if (!f) return;
   try {
     const rec = await Emu.addRomFile(f);
-    toast(`Added ${rec.name}` + (cheatsForCode(rec.code) ? " — Rare Candy cheats available ✓" : ""));
+    toast(`Added ${rec.name}` + (cheatsForCode(rec.code) ? " — Rare Candy cheats available" : ""));
     renderRoms();
   } catch (e) { toast(e.message); }
 }
@@ -73,10 +73,10 @@ async function playRom(id) {
   if (!known) { Emu.launch(rom, []); return; }
   // cheat picker before launch
   openModal(`
-    <button class="x" onclick="closeModal()">✕</button>
+    <button class="x" onclick="closeModal()">×</button>
     <h3>${esc(known.game)}</h3>
-    ${known.regionNote ? `<p class="hint">⚠ ${esc(known.regionNote)}</p>` : ""}
-    <p class="hint">Pick cheats to pre-load into the in-game cheat manager (🎮 menu → Cheats). Toggle them there, and <b>disable after withdrawing your candies</b>.</p>
+    ${known.regionNote ? `<p class="hint">${esc(known.regionNote)}</p>` : ""}
+    <p class="hint">Pick cheats to pre-load into the in-game cheat manager (in-game menu → Cheats). Toggle them there, and <b>disable after withdrawing your candies</b>.</p>
     ${known.cheats.map((c, i) => `
       <div class="cheat-row">
         <input type="checkbox" id="ck${i}" ${i === 0 ? "checked" : ""} style="margin-top:4px">
@@ -86,7 +86,7 @@ async function playRom(id) {
           <div class="c">${esc(c.code)}</div>
         </div>
       </div>`).join("")}
-    <button class="btn gold full" style="margin-top:10px" onclick="launchWithCheats('${id}')">▶ Start Game</button>
+    <button class="btn gold full" style="margin-top:10px" onclick="launchWithCheats('${id}')">Start Game</button>
     <button class="btn secondary full" style="margin-top:8px" onclick="closeModal();DB.get('roms','${id}').then(r=>Emu.launch(r,[]))">Start without cheats</button>
   `);
   window._pendingCheats = known.cheats;
@@ -105,11 +105,11 @@ async function launchWithCheats(id) {
 async function romMenu(id) {
   const rom = await DB.get("roms", id);
   openModal(`
-    <button class="x" onclick="closeModal()">✕</button>
+    <button class="x" onclick="closeModal()">×</button>
     <h3>${esc(rom.name)}</h3>
     <p class="hint mono">Header: ${esc(rom.title || "?")} · Code: ${esc(rom.code || "?")} · ${(rom.size / 1048576).toFixed(2)} MB</p>
-    <button class="btn secondary full" style="margin-top:10px" onclick="exportRom('${id}')">⬇ Export ROM file</button>
-    <button class="btn secondary full" style="margin-top:8px;color:var(--bad)" onclick="deleteRom('${id}')">🗑 Delete from library</button>
+    <button class="btn secondary full" style="margin-top:10px" onclick="exportRom('${id}')">Export ROM file</button>
+    <button class="btn secondary full" style="margin-top:8px;color:var(--bad)" onclick="deleteRom('${id}')">Delete from library</button>
   `);
 }
 async function exportRom(id) {
@@ -143,8 +143,8 @@ async function applyPatch() {
     const outName = Patch.patch.name.replace(/\.(ips|ups|bps)$/i, "");
     const baseExt = (Patch.rom.name.split(".").pop() || "gba").toLowerCase();
     const rec = await Emu.addRomBuffer(r.buffer, outName, baseExt);
-    toast("Patched ✓ — added to your library" + (warn.length ? " (with warnings)" : ""));
-    if (warn.length) openModal(`<button class="x" onclick="closeModal()">✕</button><h3>Patched with warnings</h3>${warn.map(w => `<p class="hint">⚠ ${esc(w)}</p>`).join("")}<p class="hint">The hack may still work — many hacks expect a specific base ROM revision.</p><button class="btn gold full" onclick="closeModal();go('play')">Go to library</button>`);
+    toast("Patched — added to your library" + (warn.length ? " (with warnings)" : ""));
+    if (warn.length) openModal(`<button class="x" onclick="closeModal()">×</button><h3>Patched with warnings</h3>${warn.map(w => `<p class="hint">${esc(w)}</p>`).join("")}<p class="hint">The hack may still work — many hacks expect a specific base ROM revision.</p><button class="btn gold full" onclick="closeModal();go('play')">Go to library</button>`);
     else go("play");
   } catch (e) { toast("Patch failed: " + e.message, 4000); }
 }
@@ -205,7 +205,7 @@ const Tracker = {
     const loc = $("#enc-loc").value.trim(), sp = $("#enc-species").value.trim(), nick = $("#enc-nick").value.trim();
     if (!loc || !sp) { toast("Location and species required"); return; }
     if (this.state.encounters.some(e => e.location.toLowerCase() === loc.toLowerCase() && e.status !== "missed")) {
-      toast("⚠ You already used the encounter for " + loc + " (first-encounter rule)", 3500);
+      toast("Heads up: you already used the encounter for " + loc + " (first-encounter rule)", 3500);
     }
     this.state.encounters.unshift({ location: loc, species: sp, nick, status: "team", note: "" });
     $("#enc-loc").value = $("#enc-species").value = $("#enc-nick").value = "";
@@ -256,7 +256,7 @@ const Docs = {
     docs.sort((a, b) => b.added - a.added);
     el.innerHTML = docs.map(d => `
       <div class="doc-item" onclick="Docs.open('${d.id}')">
-        <div class="ic">${d.kind === "note" ? "📝" : d.type?.includes("pdf") ? "📕" : "📄"}</div>
+        <div class="ic">${d.kind === "note" ? "TXT" : d.type?.includes("pdf") ? "PDF" : "DOC"}</div>
         <div class="nm">${esc(d.name)}</div>
         <div class="sz">${d.kind === "note" ? "note" : (d.size / 1024).toFixed(0) + " KB"}</div>
       </div>`).join("");
@@ -275,7 +275,7 @@ const Docs = {
 
   newNote() {
     openModal(`
-      <button class="x" onclick="closeModal()">✕</button>
+      <button class="x" onclick="closeModal()">×</button>
       <h3>New note</h3>
       <label class="f">Title</label><input type="text" id="note-title" placeholder="e.g. Whitney plan">
       <label class="f">Content</label><textarea id="note-body" rows="10" placeholder="Markdown or plain text…"></textarea>
@@ -296,7 +296,7 @@ const Docs = {
     if (!d) return;
     if (d.kind === "note") {
       openModal(`
-        <button class="x" onclick="closeModal()">✕</button>
+        <button class="x" onclick="closeModal()">×</button>
         <h3>Edit note</h3>
         <label class="f">Title</label><input type="text" id="note-title" value="${esc(d.name)}">
         <label class="f">Content</label><textarea id="note-body" rows="12">${esc(d.text)}</textarea>
@@ -306,15 +306,15 @@ const Docs = {
         </div>`);
     } else if (d.text !== undefined) {
       openModal(`
-        <button class="x" onclick="closeModal()">✕</button>
+        <button class="x" onclick="closeModal()">×</button>
         <h3>${esc(d.name)}</h3>
-        <pre style="white-space:pre-wrap;font-size:13px;line-height:1.6;color:#c9d2e6">${esc(d.text)}</pre>
+        <pre style="white-space:pre-wrap;font-size:13px;line-height:1.6;color:var(--text)">${esc(d.text)}</pre>
         <button class="btn secondary full" style="color:var(--bad)" onclick="Docs.del('${d.id}')">Delete</button>`);
     } else {
       const blob = new Blob([d.data], { type: d.type || "application/octet-stream" });
       const url = URL.createObjectURL(blob);
       openModal(`
-        <button class="x" onclick="closeModal()">✕</button>
+        <button class="x" onclick="closeModal()">×</button>
         <h3>${esc(d.name)}</h3>
         <p class="hint">Binary document (${(d.size / 1024).toFixed(0)} KB).</p>
         <a class="btn gold full" style="margin-top:10px;text-decoration:none" href="${url}" target="_blank">Open / Download</a>
@@ -339,7 +339,7 @@ const CalcUI = {
       for (const k of ["hp", "atk", "def", "spa", "spd", "spe"]) {
         const el = $(`#${side}-b-${k}`); if (el) el.value = mon.stats[k];
       }
-      toast(`${mon.name} loaded ✓`);
+      toast(`${mon.name} loaded`);
       this.run();
     } catch (e) { toast("Not found — check spelling (PokéAPI name, e.g. 'nidoran-f')", 3500); }
   },
@@ -404,7 +404,7 @@ const CalcUI = {
     let koTxt, koColor;
     if (eff === 0) { koTxt = "Immune — no damage"; koColor = "var(--muted)"; }
     else if (ko.n === 1) { koTxt = ko.p >= 1 ? "Guaranteed OHKO" : `${Math.round(ko.p * 100)}% chance to OHKO`; koColor = "var(--good)"; }
-    else if (ko.n) { koTxt = `${ko.p >= 1 ? "Guaranteed" : "Possible"} ${ko.n}HKO`; koColor = ko.n <= 2 ? "var(--accent2)" : "var(--info)"; }
+    else if (ko.n) { koTxt = `${ko.p >= 1 ? "Guaranteed" : "Possible"} ${ko.n}HKO`; koColor = ko.n <= 2 ? "var(--accent)" : "var(--info)"; }
     else { koTxt = "Needs 7+ hits"; koColor = "var(--muted)"; }
 
     const effTxt = eff === 1 ? "neutral" : eff === 0 ? "immune ×0" : "×" + eff + (eff > 1 ? " super effective" : " not very effective");

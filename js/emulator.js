@@ -19,8 +19,8 @@ const Emu = (() => {
     const real = new Date(_realDateNow());
     _clockOffsetMs = (targetHour - real.getHours()) * 3600000;
     if (btn) {
-      btn.textContent = _dayNight === "day" ? "☀️" : "🌙";
-      btn.classList.toggle("ff-on", _dayNight === "night");
+      btn.textContent = _dayNight === "day" ? "Day" : "Night";
+      btn.classList.toggle("ff-on", true);
     }
     toast("In-game time → " + (_dayNight === "day" ? "Day (1 PM)" : "Night (1 AM)") +
       " · take a few steps or re-enter the area to apply");
@@ -30,11 +30,11 @@ const Emu = (() => {
   function toggleControls(btn) {
     const st = document.getElementById("emu-stage");
     const hidden = st.classList.toggle("ctrls-hidden");
-    if (btn) { btn.classList.toggle("ff-on", hidden); btn.textContent = hidden ? "🎮✕" : "🎮"; }
+    if (btn) { btn.classList.toggle("ff-on", hidden); btn.textContent = hidden ? "Show" : "Hide"; }
     toast(hidden ? "Controls hidden — full touch screen" : "Controls shown");
   }
 
-  /* ---- Settings: show/hide the 🐞 touch-diagnostic button ---- */
+  /* ---- Settings: show/hide the touch-diagnostic button ---- */
   function setDebugVisible(on) {
     localStorage.setItem("showTouchDebug", on ? "1" : "0");
     const b = document.getElementById("btn-tdbg");
@@ -46,7 +46,7 @@ const Emu = (() => {
     if (cb) cb.checked = localStorage.getItem("showTouchDebug") === "1";
   });
 
-  /* Optional touch diagnostic HUD (off by default; toggled by the 🐞 button).
+  /* Optional touch diagnostic HUD (off by default; toggled by the Debug button).
      Lets us see, on the device, whether touches are reaching the bridge. */
   function dbg(msg) {
     if (localStorage.getItem("ndsTouchDebug") !== "1") return;
@@ -112,15 +112,24 @@ const Emu = (() => {
     title.textContent = rom.name;
     document.getElementById("game-holder").innerHTML = '<div id="game"></div>';
 
-    // Day/Night + hide-controls are NDS-only; 🐞 shows only if enabled in Settings.
+    // Day/Night + hide-controls are NDS-only; Debug shows only if enabled in Settings.
     const isNds = rom.ext === "nds";
     const setHidden = (id, h) => { const e = document.getElementById(id); if (e) e.hidden = h; };
     setHidden("btn-daynight", !isNds);
     setHidden("btn-hidectrl", !isNds);
     setHidden("btn-tdbg", localStorage.getItem("showTouchDebug") !== "1");
+
+    // Reset every toggle button AND its underlying state so the lit indicator
+    // always matches reality on a fresh launch (fixes "starts on but not lit").
+    ff = false;
     _clockOffsetMs = 0; _dayNight = null;
-    const dn = document.getElementById("btn-daynight");
-    if (dn) { dn.textContent = "🌓"; dn.classList.remove("ff-on"); }
+    localStorage.setItem("ndsTouchDebug", "0");
+    const _hud = document.getElementById("nds-hud"); if (_hud) _hud.remove();
+    const resetBtn = (id, label) => { const e = document.getElementById(id); if (e) { e.classList.remove("ff-on"); e.textContent = label; } };
+    resetBtn("btn-ff", "FF");
+    resetBtn("btn-hidectrl", "Hide");
+    resetBtn("btn-daynight", "Day/Night");
+    resetBtn("btn-tdbg", "Debug");
 
     const blob = new Blob([rom.data]);
     const url = URL.createObjectURL(blob);
@@ -137,7 +146,7 @@ const Emu = (() => {
     window.EJS_cheats = (cheats || []).map(c => [c[0], c[1].split("\n").join("+")]);
     window.EJS_defaultOptions = {
       "save-state-location": "browser",
-      "fastForward": "enabled",
+      "fastForward": "disabled",   // start OFF; the FF button toggles it (3x)
       "ff-ratio": "3.0",
       // DeSmuME: default pointer type is "mouse" (relative cursor) which ignores
       // taps. "touch" makes the stylus go to where you tap — required for mobile.
@@ -373,7 +382,7 @@ const Emu = (() => {
     }
     btn.classList.toggle("ff-on", ff);
     btn.textContent = ff ? "FF ⏩ ON" : "FF ⏩";
-    if (!ok) toast("Use the ⚙ settings menu → Fast Forward if the button doesn't take effect");
+    if (!ok) toast("Use the in-game settings menu to toggle Fast Forward if the button doesn't take effect");
   }
 
   function exit() { location.reload(); }
