@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0b0e14">
+<meta name="theme-color" content="#f6f7f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1011" media="(prefers-color-scheme: dark)">
 <title>NuzLocke Deck</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -16,7 +17,7 @@
 <header class="app-bar">
   <div class="ball"></div>
   <h1>NuzLocke <span>Deck</span></h1>
-  <div class="sub">v2.5 · Jun 13</div>
+  <div class="sub">v2.6 · Jun 13</div>
 </header>
 
 <main>
@@ -28,21 +29,21 @@
     <button class="btn full" onclick="document.getElementById('rom-file').click()">＋ Add ROM (.gba / .nds)</button>
     <p class="hint" style="font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.5">
       Only play games you own. ROMs are stored privately on this device (IndexedDB) — nothing is uploaded.
-      Saves &amp; save states are kept in browser storage; use the in-game 💾 buttons.
+      Saves &amp; save states are kept in browser storage; use the in-game save buttons.
     </p>
     <div class="card" style="margin-top:16px">
       <h3>⏩ Speed-up mode</h3>
-      <p class="hint">Fast-forward is pre-enabled at 3×. In game, tap the <b>FF ⏩</b> button in the top bar, or use the ⚙ settings menu → Fast Forward. Perfect for candy-grinding trips to the PC.</p>
+      <p class="hint">In game, tap the <b>FF</b> button in the top bar to fast-forward at 3×, or use the in-game settings menu. Perfect for candy-grinding trips to the PC.</p>
     </div>
     <div class="card">
-      <h3>🍬 Rare Candy cheats</h3>
+      <h3>Rare Candy cheats</h3>
       <p class="hint">The app reads each ROM's header and auto-detects the game. Supported games (Ruby → White 2, incl. most ROM hacks built on them) get verified Rare Candy codes offered at launch — they land in the in-game cheat manager, ready to toggle.</p>
     </div>
     <div class="card">
-      <h3>⚙️ Settings</h3>
+      <h3>Settings</h3>
       <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--text);line-height:1.45">
         <input type="checkbox" id="set-touchdebug" style="width:auto;margin-top:2px;flex:none" onchange="Emu.setDebugVisible(this.checked)">
-        <span>Show the touch-diagnostic (🐞) button in the emulator. For troubleshooting NDS touch input — leave off for normal play.</span>
+        <span>Show the touch-diagnostic button in the emulator. For troubleshooting NDS touch input — leave off for normal play.</span>
       </label>
     </div>
   </section>
@@ -61,7 +62,7 @@
       <input type="file" id="p-patch" hidden onchange="patchPick('patch',this)">
       <button class="btn secondary full" onclick="document.getElementById('p-patch').click()">Choose .ips / .ups / .bps / .xdelta</button>
       <p class="hint mono" id="p-patch-name">none selected</p>
-      <button class="btn gold full" id="btn-apply-patch" style="margin-top:14px" disabled onclick="applyPatch()">⚡ Patch &amp; add to library</button>
+      <button class="btn gold full" id="btn-apply-patch" style="margin-top:14px" disabled onclick="applyPatch()">Patch &amp; add to library</button>
     </div>
     <div class="card">
       <h3>Tips</h3>
@@ -82,7 +83,7 @@
       </div>
       <div class="row" style="flex:none;gap:8px">
         <button class="btn small secondary" id="cap-prev" onclick="Tracker.capMove(-1)">◀</button>
-        <button class="btn small gold" id="cap-next" onclick="Tracker.capMove(1)">Beat it ▶</button>
+        <button class="btn small gold" id="cap-next" onclick="Tracker.capMove(1)">Beat it</button>
       </div>
     </div>
 
@@ -102,7 +103,7 @@
     <div id="enc-team"></div>
     <h2 class="section">Box</h2>
     <div id="enc-boxed"></div>
-    <h2 class="section">Graveyard 🪦 (<span id="dead-count">0</span>)</h2>
+    <h2 class="section">Graveyard (<span id="dead-count">0</span>)</h2>
     <div id="enc-dead"></div>
     <h2 class="section">Missed</h2>
     <div id="enc-missed"></div>
@@ -203,9 +204,9 @@
   <section class="page" id="page-docs">
     <h2 class="section">Run Documentation</h2>
     <div class="row" style="margin-bottom:12px">
-      <button class="btn" onclick="Docs.newNote()">📝 New note</button>
+      <button class="btn" onclick="Docs.newNote()">New note</button>
       <input type="file" id="doc-file" hidden onchange="Docs.importFile(this)">
-      <button class="btn secondary" onclick="document.getElementById('doc-file').click()">📥 Import file</button>
+      <button class="btn secondary" onclick="document.getElementById('doc-file').click()">Import file</button>
     </div>
     <p class="hint" style="margin:0 2px 12px;color:var(--muted);font-size:12px">
       Store encounter tables, boss movesets, team plans, damage-calc cribsheets. Text/markdown opens in-app; PDFs and others open natively. All offline, on-device.
@@ -239,12 +240,12 @@
 <!-- emulator stage -->
 <div id="emu-stage">
   <div id="emu-topbar">
-    <button onclick="Emu.exit()">✕ Exit</button>
+    <button onclick="Emu.exit()">Exit</button>
     <div class="title" id="emu-title"></div>
-    <button id="btn-daynight" onclick="Emu.toggleDayNight(this)" title="Toggle day / night" hidden>🌓</button>
-    <button id="btn-hidectrl" onclick="Emu.toggleControls(this)" title="Hide / show on-screen controls" hidden>🎮</button>
-    <button id="btn-tdbg" onclick="Emu.toggleDebug(this)" title="Touch diagnostic" hidden>🐞</button>
-    <button id="btn-ff" onclick="Emu.toggleFF(this)">FF ⏩</button>
+    <button id="btn-daynight" onclick="Emu.toggleDayNight(this)" title="Toggle day / night" hidden>Day/Night</button>
+    <button id="btn-hidectrl" onclick="Emu.toggleControls(this)" title="Hide / show on-screen controls" hidden>Hide</button>
+    <button id="btn-tdbg" onclick="Emu.toggleDebug(this)" title="Touch diagnostic" hidden>Debug</button>
+    <button id="btn-ff" onclick="Emu.toggleFF(this)">FF</button>
   </div>
   <div id="game-holder"><div id="game"></div></div>
 </div>
