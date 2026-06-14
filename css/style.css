@@ -136,7 +136,9 @@ label.f { display: block; font-size: 11.5px; color: var(--muted); font-weight: 6
 #emu-stage {
   position: fixed; inset: 0; z-index: 100; background: #000;
   display: none; flex-direction: column;
-  touch-action: none; user-select: none; -webkit-user-select: none;
+  /* touch-action: auto (not none) so iOS emits its trusted compatibility
+     mouse events from a tap — the libretro core reads those for the DS stylus. */
+  touch-action: auto; user-select: none; -webkit-user-select: none;
 }
 #emu-stage.on { display: flex; }
 #emu-topbar {
@@ -150,9 +152,9 @@ label.f { display: block; font-size: 11.5px; color: var(--muted); font-weight: 6
   border-radius: 9px; padding: 7px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
 }
 #emu-topbar button.ff-on { background: var(--accent2); color: #1a1300; border-color: var(--accent2); }
-#game-holder { flex: 1; position: relative; touch-action: none; user-select: none; -webkit-user-select: none; }
-#game { position: absolute; inset: 0; touch-action: none; user-select: none; -webkit-user-select: none; }
-#game canvas, #game iframe { touch-action: none; }
+#game-holder { flex: 1; position: relative; touch-action: auto; user-select: none; -webkit-user-select: none; }
+#game { position: absolute; inset: 0; touch-action: auto; user-select: none; -webkit-user-select: none; }
+#game canvas, #game iframe { touch-action: auto; }
 
 /* ---------- tracker ---------- */
 .enc-row {
