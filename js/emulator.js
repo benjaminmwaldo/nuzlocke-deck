@@ -94,12 +94,15 @@ const Emu = (() => {
     window.EJS_ready = () => {
       const holder = document.getElementById("game-holder");
 
-      // iOS fix: force touch-action:none on every canvas EmulatorJS creates so
-      // Safari doesn't swallow touchmove events for scrolling.
+      // Keep touch-action AUTO on every canvas EmulatorJS creates: "none" would
+      // suppress the trusted compatibility mouse events iOS emits from a tap,
+      // which is exactly what the libretro core reads for the DS stylus.
       const fixTouch = el => {
-        el.style.touchAction = "none";
+        el.style.touchAction = "auto";
         el.style.userSelect = "none";
         el.style.webkitUserSelect = "none";
+        el.style.cursor = "pointer";          // help iOS treat it as clickable
+        if (!el.onclick) el.onclick = () => {};
       };
       holder.querySelectorAll("canvas").forEach(fixTouch);
       new MutationObserver(mutations => {
@@ -135,7 +138,7 @@ const Emu = (() => {
           const ejsCanvas = (ejs && ejs.canvas) || holder.querySelector("canvas");
           if (!ejsCanvas) { setTimeout(setupNdsBridge, 150); return; }
 
-          dbg("v2.2 (DeSmuME) ready — touch the bottom screen");
+          dbg("v2.3 (DeSmuME) ready — touch the bottom screen");
 
           let dragging = false;
 
@@ -224,7 +227,7 @@ const Emu = (() => {
             const { cv, tr } = forward("down", t.clientX, t.clientY);
             const m = window.EJS_emulator && window.EJS_emulator.Module;
             dbg([
-              "v2.2 down @ " + Math.round(t.clientX) + "," + Math.round(t.clientY),
+              "v2.3 down @ " + Math.round(t.clientX) + "," + Math.round(t.clientY),
               "target:   " + desc(e.target),
               "dispatch: " + desc(cv),
               "Module.canvas: " + (m ? (m.canvas === cv ? "(same)" : desc(m.canvas)) : "none"),
