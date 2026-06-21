@@ -17,7 +17,7 @@
 <header class="app-bar">
   <div class="ball"></div>
   <h1>NuzLocke <span>Deck</span></h1>
-  <div class="sub">v2.6 · Jun 13</div>
+  <div class="sub">v3.0 · Claude Plays</div>
 </header>
 
 <main>
@@ -38,6 +38,11 @@
     <div class="card">
       <h3>Rare Candy cheats</h3>
       <p class="hint">The app reads each ROM's header and auto-detects the game. Supported games (Ruby → White 2, incl. most ROM hacks built on them) get verified Rare Candy codes offered at launch — they land in the in-game cheat manager, ready to toggle.</p>
+    </div>
+    <div class="card">
+      <h3>🤖 Claude Auto-Play</h3>
+      <p class="hint">Let Claude play the Nuzlocke for you. It watches the screen and presses the buttons itself, streaming its reasoning live. Works best on GBA games (FireRed, Emerald, Ruby) — buttons only, no DS touch. Add your Anthropic API key, start a game, then tap <b>AI</b> in the emulator top bar.</p>
+      <button class="btn full" style="margin-top:10px" onclick="AIPlay.openSettings()">Set up Claude Auto-Play</button>
     </div>
     <div class="card">
       <h3>Settings</h3>
@@ -245,6 +250,7 @@
     <button id="btn-daynight" onclick="Emu.toggleDayNight(this)" title="Toggle day / night" hidden>Day/Night</button>
     <button id="btn-hidectrl" onclick="Emu.toggleControls(this)" title="Hide / show on-screen controls" hidden>Hide</button>
     <button id="btn-tdbg" onclick="Emu.toggleDebug(this)" title="Touch diagnostic" hidden>Debug</button>
+    <button id="btn-ai" onclick="AIPlay.toggle()" title="Let Claude play (auto)">AI</button>
     <button id="btn-ff" onclick="Emu.toggleFF(this)">FF</button>
   </div>
   <div id="game-holder"><div id="game"></div></div>
@@ -262,6 +268,7 @@
 <script src="js/rules.js"></script>
 <script src="js/calc.js"></script>
 <script src="js/emulator.js"></script>
+<script src="js/aiplay.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
