@@ -105,6 +105,11 @@ const Emu = (() => {
     if (running) { location.reload(); return; }
     running = true;
 
+    // Expose the running ROM so AIPlay can fetch the right Nuzlocke context,
+    // and reset any previous AI run so turn/notes start fresh for this game.
+    window._currentRom = rom;
+    try { if (window.AIPlay) { AIPlay.stop(); AIPlay.reset(); } } catch (_) {}
+
     const stage = document.getElementById("emu-stage");
     const title = document.getElementById("emu-title");
     stage.classList.add("on");
